@@ -1,0 +1,88 @@
+install.packages("tidytuesdayR")
+install.packages("tidyverse")
+
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(forcats)
+
+tuesdata <- tidytuesdayR::tt_load('2021-01-12')
+
+tuesdata$artists %>% 
+  View()
+
+Artista <- tuesdata$artists %>%
+  mutate(gender = factor(gender, levels = c('Female', 'Male')))
+
+G.Art <- Artista %>%
+  drop_na(gender)
+
+Artista %>% 
+  drop_na(gender) %>%
+  group_by(gender) %>%
+  count() %>%
+  mutate(pct_tot = n/nrow(G.Art)*100) %>%
+  ggplot(aes(gender,pct_tot, fill = gender)) +
+  geom_bar(stat = "identity") +
+  labs(x = 'Genero',
+       y = 'Porcentaje',
+       title = 'Cual es el porcentaje del genero')
+
+B.Art <- sub('.*,','', Artista$placeOfBirth)
+
+Artista$placeOfBirth[] <- B.Art
+
+T.Art<- Artista %>%
+  drop_na(placeOfBirth) %>%
+  group_by(placeOfBirth) %>%
+  count() %>%
+  arrange(desc(n))
+
+T.Art <- pull(T.Art[1:10,1])
+
+GT.Art <- Artista %>% 
+  filter(placeOfBirth %in% T.Art) %>%
+  count(gender, placeOfBirth) 
+  
+GT.Art <- GT.Art[-21,]
+
+j <- 11
+i <- 1
+N <- seq(0,0,length.out=10)
+for (i in 1:10){
+  N[i] <- GT.Art[i,3] + GT.Art[j,3] 
+  i <- i + 1
+  j <- j + 1
+}
+
+GT.Art <- cbind(GT.Art,unlist(N))
+
+GT.Art %>% 
+  mutate(perc = n/unlist(N)*100) %>%
+  ggplot(aes(gender,perc, fill = gender)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~placeOfBirth) + 
+  labs(x = 'Genero',
+       y = 'Porcentaje',
+       title = 'Cual es el porcentaje del genero')
+  
+Obra <- tuesdata$artwork
+
+Artistas <- Obra %>%
+  group_by(artist) %>%
+  summarize(Total = n(),
+            Perc = Total/nrow(Obra)*100) %>%
+  arrange(desc(Total))
+
+Artistas %>%
+  head(10) %>%
+  mutate(artist = fct_reorder(artist,Perc)) %>%
+  ggplot(aes(artist, Perc)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(x = 'Artista',
+       y = 'Porcentaje',
+       title = 'Cual es el porcentaje de popularidad')
